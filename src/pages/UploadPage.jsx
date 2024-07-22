@@ -1,35 +1,47 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import Papa from "papaparse";
 import { useToast } from "@/components/ui/use-toast";
 
 const UploadPage = () => {
   const [csvData, setCsvData] = useState(null);
   const { toast } = useToast();
 
+  const parseCSV = (text) => {
+    const lines = text.split('\n');
+    const headers = lines[0].split(',');
+    const rows = lines.slice(1).map(line => {
+      const values = line.split(',');
+      return headers.reduce((obj, header, index) => {
+        obj[header.trim()] = values[index]?.trim() || '';
+        return obj;
+      }, {});
+    });
+    return rows;
+  };
+
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
-      Papa.parse(file, {
-        complete: (result) => {
-          if (result.errors.length > 0) {
-            toast({
-              title: "Error",
-              description: "Failed to parse CSV file. Please check the file format.",
-              variant: "destructive",
-            });
-          } else {
-            setCsvData(result.data);
-            toast({
-              title: "Success",
-              description: "CSV file uploaded and parsed successfully.",
-            });
-          }
-        },
-        header: true,
-        skipEmptyLines: true,
-      });
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target.result;
+          const data = parseCSV(text);
+          setCsvData(data);
+          toast({
+            title: "Success",
+            description: "CSV file uploaded and parsed successfully.",
+          });
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "Failed to parse CSV file. Please check the file format.",
+            variant: "destructive",
+          });
+        }
+      };
+      reader.readAsText(file);
     }
   };
 
@@ -48,7 +60,7 @@ const UploadPage = () => {
           />
         </label>
       </div>
-      {csvData && (
+      {csvData && csvData.length > 0 && (
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-2">CSV Content</h2>
           <div className="border rounded-lg overflow-hidden">
